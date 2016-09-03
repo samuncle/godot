@@ -129,9 +129,11 @@ varying highp vec3 ambient_octree_coords;
 #ifdef USE_FOG
 
 varying vec4 fog_interp;
+varying vec3 fog_distance;
+
 uniform highp vec3 fog_params;
-uniform vec3 fog_color_begin;
-uniform vec3 fog_color_end;
+uniform vec4 fog_color_begin;
+uniform vec4 fog_color_end;
 
 #endif
 
@@ -381,8 +383,7 @@ VERTEX_SHADER_CODE
 
 #ifdef USE_FOG
 
-	fog_interp.a = pow( clamp( (length(vertex_interp)-fog_params.x)/(fog_params.y-fog_params.x), 0.0, 1.0 ), fog_params.z );
-	fog_interp.rgb = mix( fog_color_begin, fog_color_end, fog_interp.a );
+	fog_distance = vertex_interp;
 #endif
 
 #ifndef VERTEX_SHADER_WRITE_POSITION
@@ -547,7 +548,11 @@ varying vec3 normal_interp;
 #ifdef USE_FOG
 
 varying vec4 fog_interp;
+varying vec3 fog_distance;
 
+uniform highp vec3 fog_params;
+uniform vec4 fog_color_begin;
+uniform vec4 fog_color_end;
 #endif
 
 /* Material Uniforms */
@@ -1211,7 +1216,13 @@ LIGHT_SHADER_CODE
 
 #ifdef USE_FOG
 
-		diffuse.rgb = mix(diffuse.rgb,fog_interp.rgb,fog_interp.a);
+		vec4 fog_new;
+		fog_new.a = pow( clamp( (length(fog_distance)-fog_params.x)/(fog_params.y-fog_params.x), 0.0, 1.0 ), fog_params.z );
+		fog_new.rgb = mix( fog_color_begin.rgb, fog_color_end.rgb, fog_new.a );
+
+		float alphablend = mix( fog_color_begin.a, fog_color_end.a, fog_new.a );
+
+		diffuse.rgb = mix(diffuse.rgb,fog_new.rgb,fog_new.a * alphablend);
 
 # if defined(LIGHT_TYPE_OMNI) || defined (LIGHT_TYPE_SPOT)
 		diffuse.rgb = mix(mix(vec3(0.0),diffuse.rgb,attenuation),diffuse.rgb,const_light_mult);
